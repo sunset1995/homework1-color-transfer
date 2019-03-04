@@ -93,18 +93,12 @@ transforms_ = [ transforms.Resize(int(opt.size*1.12), Image.BICUBIC),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
-# tmp = ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True)
-# print(len(tmp))
 dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True),
                         batch_size=opt.batchSize, shuffle=True, num_workers=opt.n_cpu)
-
-# Loss plot
-# logger = Logger(opt.n_epochs, len(dataloader))
 ###################################
 
 ###### Training ######
 for epoch in trange(opt.epoch, opt.n_epochs, desc='Ep', unit='ep'):
-    print(epoch)
     data_it = iter(dataloader)
     for i in trange(len(dataloader), desc='It', unit='it'):
         batch = next(data_it)
