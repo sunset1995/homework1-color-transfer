@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from PIL import Image
 import torch
-from tqdm import tqdm
+from tqdm import trange
 
 from models import Generator
 from models import Discriminator
@@ -109,8 +109,8 @@ dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unal
 ###################################
 
 ###### Training ######
-for epoch in tqdm(range(opt.epoch, opt.n_epochs)):
-    for i, batch in tqdm(enumerate(dataloader)):
+for epoch in trange(range(opt.epoch, opt.n_epochs), desc='Ep', unit='ep'):
+    for i, batch in trange(enumerate(dataloader), desc='It', unit='it'):
         # Set model input
         real_A = Variable(input_A.copy_(batch['A']))
         real_B = Variable(input_B.copy_(batch['B']))
