@@ -104,6 +104,7 @@ dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unal
 
 ###### Training ######
 for epoch in trange(opt.epoch, opt.n_epochs, desc='Ep', unit='ep'):
+    print(epoch)
     data_it = iter(dataloader)
     for i in trange(len(dataloader), desc='It', unit='it'):
         batch = next(data_it)
@@ -208,12 +209,12 @@ for epoch in trange(opt.epoch, opt.n_epochs, desc='Ep', unit='ep'):
     lr_scheduler_D_A.step()
     lr_scheduler_D_B.step()
 
-    if epoch%10==0:
+    if (epoch + 1) % 10 == 0:
         # Save models checkpoints
-        torch.save(netG_A2B.state_dict(), out_path+'/netG_A2B_%d.pth'%(epoch))
-        torch.save(netG_B2A.state_dict(), out_path+'/netG_B2A_%d.pth'%(epoch))
-        torch.save(netD_A.state_dict(), out_path+'/netD_A_%d.pth'%(epoch))
-        torch.save(netD_B.state_dict(), out_path+'/netD_B_%d.pth'%(epoch))
+        torch.save(netG_A2B.state_dict(), out_path+'/netG_A2B_%d.pth'%(epoch + 1))
+        torch.save(netG_B2A.state_dict(), out_path+'/netG_B2A_%d.pth'%(epoch + 1))
+        torch.save(netD_A.state_dict(), out_path+'/netD_A_%d.pth'%(epoch + 1))
+        torch.save(netD_B.state_dict(), out_path+'/netD_B_%d.pth'%(epoch + 1))
 
         torch.save(netG_A2B.state_dict(), out_path+'/netG_A2B.pth')
         torch.save(netG_B2A.state_dict(), out_path+'/netG_B2A.pth')
