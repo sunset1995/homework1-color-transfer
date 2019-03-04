@@ -4,7 +4,6 @@ import itertools
 import os
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
 from PIL import Image
 import torch
 from tqdm import trange
@@ -37,13 +36,15 @@ print(opt)
 
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+device = torch.device('cuda' if opt.cuda else 'cpu')
+print(device)
 
 ###### Definition of variables ######
 # Networks
-netG_A2B = Generator(opt.input_nc, opt.output_nc)
-netG_B2A = Generator(opt.output_nc, opt.input_nc)
-netD_A = Discriminator(opt.input_nc)
-netD_B = Discriminator(opt.output_nc)
+netG_A2B = Generator(opt.input_nc, opt.output_nc).to(device)
+netG_B2A = Generator(opt.output_nc, opt.input_nc).to(device)
+netD_A = Discriminator(opt.input_nc).to(device)
+netD_B = Discriminator(opt.output_nc).to(device)
 
 name = opt.dataroot.split('/')[-2] if opt.dataroot.split('/')[-1]=='' else opt.dataroot.split('/')[-1]
 print(name)
@@ -56,12 +57,6 @@ if not os.path.exists(out_path):
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 tb_writer = SummaryWriter(log_dir=log_path)
-
-if opt.cuda:
-    netG_A2B.cuda()
-    netG_B2A.cuda()
-    netD_A.cuda()
-    netD_B.cuda()
 
 netG_A2B.apply(weights_init_normal)
 netG_B2A.apply(weights_init_normal)
@@ -84,11 +79,10 @@ lr_scheduler_D_A = torch.optim.lr_scheduler.LambdaLR(optimizer_D_A, lr_lambda=La
 lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(optimizer_D_B, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
 
 # Inputs & targets memory allocation
-Tensor = torch.cuda.FloatTensor if opt.cuda else torch.Tensor
-input_A = Tensor(opt.batchSize, opt.input_nc, opt.size, opt.size)
-input_B = Tensor(opt.batchSize, opt.output_nc, opt.size, opt.size)
-target_real = Variable(Tensor(opt.batchSize).fill_(1.0), requires_grad=False)
-target_fake = Variable(Tensor(opt.batchSize).fill_(0.0), requires_grad=False)
+input_A = torch.FloatTensor(opt.batchSize, opt.input_nc, opt.size, opt.size).to(device)
+input_B = torch.FloatTensor(opt.batchSize, opt.output_nc, opt.size, opt.size).to(device)
+target_real = torch.FloatTensor(opt.batchSize).fill_(1.0).to(device)
+target_fake = torch.FloatTensor(opt.batchSize).fill_(0.0).to(device)
 
 fake_A_buffer = ReplayBuffer()
 fake_B_buffer = ReplayBuffer()
@@ -109,11 +103,15 @@ dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unal
 ###################################
 
 ###### Training ######
-for epoch in trange(range(opt.epoch, opt.n_epochs), desc='Ep', unit='ep'):
-    for i, batch in trange(enumerate(dataloader), desc='It', unit='it'):
+for epoch in trange(opt.epoch, opt.n_epochs, desc='Ep', unit='ep'):
+    data_it = iter(dataloader)
+    for i in trange(len(dataloader), desc='It', unit='it'):
+        batch = next(data_it)
+        ith = epoch + i / len(dataloader)
+
         # Set model input
-        real_A = Variable(input_A.copy_(batch['A']))
-        real_B = Variable(input_B.copy_(batch['B']))
+        real_A = input_A.copy_(batch['A'])
+        real_B = input_B.copy_(batch['B'])
 
         ###### Generators A2B and B2A ######
         optimizer_G.zero_grad()
@@ -149,14 +147,12 @@ for epoch in trange(range(opt.epoch, opt.n_epochs), desc='Ep', unit='ep'):
         optimizer_G.step()
 
         # Monitoring
-        tb_writer.add_scalar('G/loss_G', loss_G.item())
-        tb_writer.add_scalar('G/loss_D_A', loss_D_A.item())
-        tb_writer.add_scalar('G/loss_D_B', loss_D_B.item())
-        tb_writer.add_scalar('G/loss_identity_A', loss_identity_A.item())
-        tb_writer.add_scalar('G/loss_identity_B', loss_identity_B.item())
-        tb_writer.add_scalar('G/loss_GAN_A2B', loss_GAN_A2B.item())
-        tb_writer.add_scalar('G/loss_GAN_B2A', loss_GAN_B2A.item())
-        tb_writer.add_scalar('G/loss_cycle_ABA', loss_cycle_ABA.item())
+        tb_writer.add_scalar('G/loss_G', loss_G.item(), ith)
+        tb_writer.add_scalar('G/loss_identity_A', loss_identity_A.item(), ith)
+        tb_writer.add_scalar('G/loss_identity_B', loss_identity_B.item(), ith)
+        tb_writer.add_scalar('G/loss_GAN_A2B', loss_GAN_A2B.item(), ith)
+        tb_writer.add_scalar('G/loss_GAN_B2A', loss_GAN_B2A.item(), ith)
+        tb_writer.add_scalar('G/loss_cycle_ABA', loss_cycle_ABA.item(), ith)
         ###################################
 
         ###### Discriminator A ######
@@ -178,9 +174,9 @@ for epoch in trange(range(opt.epoch, opt.n_epochs), desc='Ep', unit='ep'):
         optimizer_D_A.step()
 
         # Monitoring
-        tb_writer.add_scalar('DA/loss_D_A', loss_D_A.item())
-        tb_writer.add_scalar('DA/loss_D_real', loss_D_real.item())
-        tb_writer.add_scalar('DA/loss_D_fake', loss_D_fake.item())
+        tb_writer.add_scalar('DA/loss_D_A', loss_D_A.item(), ith)
+        tb_writer.add_scalar('DA/loss_D_real', loss_D_real.item(), ith)
+        tb_writer.add_scalar('DA/loss_D_fake', loss_D_fake.item(), ith)
         ###################################
 
         ###### Discriminator B ######
@@ -202,9 +198,9 @@ for epoch in trange(range(opt.epoch, opt.n_epochs), desc='Ep', unit='ep'):
         optimizer_D_B.step()
 
         # Monitoring
-        tb_writer.add_scalar('DB/loss_D_B', loss_D_B.item())
-        tb_writer.add_scalar('DB/loss_D_real', loss_D_real.item())
-        tb_writer.add_scalar('DB/loss_D_fake', loss_D_fake.item())
+        tb_writer.add_scalar('DB/loss_D_B', loss_D_B.item(), ith)
+        tb_writer.add_scalar('DB/loss_D_real', loss_D_real.item(), ith)
+        tb_writer.add_scalar('DB/loss_D_fake', loss_D_fake.item(), ith)
         ###################################
 
     # # Update learning rates
