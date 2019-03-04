@@ -13,9 +13,12 @@ from models import Generator
 from models import Discriminator
 from utils import ReplayBuffer
 from utils import LambdaLR
-# from utils import Logger
 from utils import weights_init_normal
 from datasets import ImageDataset
+
+# Monitoring training progress
+from tensorboardX import SummaryWriter
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='starting epoch')
@@ -45,9 +48,14 @@ netD_B = Discriminator(opt.output_nc)
 name = opt.dataroot.split('/')[-2] if opt.dataroot.split('/')[-1]=='' else opt.dataroot.split('/')[-1]
 print(name)
 out_path = 'output/'+name + '/'
+log_path = 'log/'+name + '/'
 
 if not os.path.exists(out_path):
     os.makedirs(out_path)
+
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
+tb_writer = SummaryWriter(log_dir=log_path)
 
 if opt.cuda:
     netG_A2B.cuda()
@@ -86,14 +94,14 @@ fake_A_buffer = ReplayBuffer()
 fake_B_buffer = ReplayBuffer()
 
 # Dataset loader
-transforms_ = [ transforms.Resize(int(opt.size*1.12), Image.BICUBIC), 
-                transforms.RandomCrop(opt.size), 
+transforms_ = [ transforms.Resize(int(opt.size*1.12), Image.BICUBIC),
+                transforms.RandomCrop(opt.size),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 # tmp = ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True)
 # print(len(tmp))
-dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True), 
+dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True),
                         batch_size=opt.batchSize, shuffle=True, num_workers=opt.n_cpu)
 
 # Loss plot
@@ -137,8 +145,18 @@ for epoch in tqdm(range(opt.epoch, opt.n_epochs)):
         # Total loss
         loss_G = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A + loss_cycle_ABA + loss_cycle_BAB
         loss_G.backward()
-        
+
         optimizer_G.step()
+
+        # Monitoring
+        tb_writer.add_scalar('G/loss_G', loss_G.item())
+        tb_writer.add_scalar('G/loss_D_A', loss_D_A.item())
+        tb_writer.add_scalar('G/loss_D_B', loss_D_B.item())
+        tb_writer.add_scalar('G/loss_identity_A', loss_identity_A.item())
+        tb_writer.add_scalar('G/loss_identity_B', loss_identity_B.item())
+        tb_writer.add_scalar('G/loss_GAN_A2B', loss_GAN_A2B.item())
+        tb_writer.add_scalar('G/loss_GAN_B2A', loss_GAN_B2A.item())
+        tb_writer.add_scalar('G/loss_cycle_ABA', loss_cycle_ABA.item())
         ###################################
 
         ###### Discriminator A ######
@@ -158,6 +176,11 @@ for epoch in tqdm(range(opt.epoch, opt.n_epochs)):
         loss_D_A.backward()
 
         optimizer_D_A.step()
+
+        # Monitoring
+        tb_writer.add_scalar('DA/loss_D_A', loss_D_A.item())
+        tb_writer.add_scalar('DA/loss_D_real', loss_D_real.item())
+        tb_writer.add_scalar('DA/loss_D_fake', loss_D_fake.item())
         ###################################
 
         ###### Discriminator B ######
@@ -166,7 +189,7 @@ for epoch in tqdm(range(opt.epoch, opt.n_epochs)):
         # Real loss
         pred_real = netD_B(real_B)
         loss_D_real = criterion_GAN(pred_real, target_real)
-        
+
         # Fake loss
         fake_B = fake_B_buffer.push_and_pop(fake_B)
         pred_fake = netD_B(fake_B.detach())
@@ -177,15 +200,12 @@ for epoch in tqdm(range(opt.epoch, opt.n_epochs)):
         loss_D_B.backward()
 
         optimizer_D_B.step()
-        ###################################
 
-        # Progress report (http://localhost:8097)
-        # logger.log({'loss_G': loss_G, 'loss_G_identity': (loss_identity_A + loss_identity_B), 'loss_G_GAN': (loss_GAN_A2B + loss_GAN_B2A),
-        #             'loss_G_cycle': (loss_cycle_ABA + loss_cycle_BAB), 'loss_D': (loss_D_A + loss_D_B)}, 
-        #             images={'real_A': real_A, 'real_B': real_B, 'fake_A': fake_A, 'fake_B': fake_B})
-        # print('loss_G ': loss_G, 'loss_G_identity': (loss_identity_A + loss_identity_B), 'loss_G_GAN': (loss_GAN_A2B + loss_GAN_B2A),
-        #             'loss_G_cycle': (loss_cycle_ABA + loss_cycle_BAB), 'loss_D': (loss_D_A + loss_D_B))
-        # print(i)
+        # Monitoring
+        tb_writer.add_scalar('DB/loss_D_B', loss_D_B.item())
+        tb_writer.add_scalar('DB/loss_D_real', loss_D_real.item())
+        tb_writer.add_scalar('DB/loss_D_fake', loss_D_fake.item())
+        ###################################
 
     # # Update learning rates
     lr_scheduler_G.step()
