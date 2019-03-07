@@ -1,4 +1,3 @@
-
 import argparse
 import itertools
 import os
@@ -22,15 +21,16 @@ from tensorboardX import SummaryWriter
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='starting epoch')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
-parser.add_argument('--batchSize', type=int, default=1, help='size of the batches')
+parser.add_argument('--batchSize', type=int, default=8, help='size of the batches')
 parser.add_argument('--dataroot', type=str, default='datasets/horse2zebra/', help='root directory of the dataset')
 parser.add_argument('--lr', type=float, default=0.0002, help='initial learning rate')
 parser.add_argument('--decay_epoch', type=int, default=100, help='epoch to start linearly decaying the learning rate to 0')
-parser.add_argument('--size', type=int, default=256, help='size of the data crop (squared assumed)')
+parser.add_argument('--size', type=int, default=128, help='size of the data crop (squared assumed)')
 parser.add_argument('--input_nc', type=int, default=3, help='number of channels of input data')
 parser.add_argument('--output_nc', type=int, default=3, help='number of channels of output data')
 parser.add_argument('--cuda', action='store_true', help='use GPU computation')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
+parser.add_argument('--no_deconv', action='store_true', help='use upsample and conv instead')
 opt = parser.parse_args()
 print(opt)
 
@@ -41,8 +41,8 @@ print(device)
 
 ###### Definition of variables ######
 # Networks
-netG_A2B = Generator(opt.input_nc, opt.output_nc).to(device)
-netG_B2A = Generator(opt.output_nc, opt.input_nc).to(device)
+netG_A2B = Generator(opt.input_nc, opt.output_nc, no_deconv=opt.no_deconv).to(device)
+netG_B2A = Generator(opt.output_nc, opt.input_nc, no_deconv=opt.no_deconv).to(device)
 netD_A = Discriminator(opt.input_nc).to(device)
 netD_B = Discriminator(opt.output_nc).to(device)
 
@@ -94,7 +94,8 @@ transforms_ = [ transforms.Resize(int(opt.size*1.12), Image.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True),
-                        batch_size=opt.batchSize, shuffle=True, num_workers=opt.n_cpu)
+                        batch_size=opt.batchSize, shuffle=True, drop_last=True,
+                        num_workers=opt.n_cpu, pin_memory=opt.cuda)
 ###################################
 
 ###### Training ######
@@ -148,6 +149,7 @@ for epoch in trange(opt.epoch, opt.n_epochs, desc='Ep', unit='ep'):
         tb_writer.add_scalar('G/loss_GAN_A2B', loss_GAN_A2B.item(), ith)
         tb_writer.add_scalar('G/loss_GAN_B2A', loss_GAN_B2A.item(), ith)
         tb_writer.add_scalar('G/loss_cycle_ABA', loss_cycle_ABA.item(), ith)
+        tb_writer.add_scalar('G/loss_cycle_BAB', loss_cycle_BAB.item(), ith)
         ###################################
 
         ###### Discriminator A ######
