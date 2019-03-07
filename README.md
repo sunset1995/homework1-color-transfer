@@ -6,9 +6,8 @@ We organize this report as follow:
     - shoing the training loss plot
 2. Inferencing
     - visualize/analysis the difference before/after the modification
-    - Visualization with different input resolution
     - Show some result on personal images
-3. Other method [TODO]
+3. Comparison with LAB color transfer
 
 
 ## 1. Training CycleGan
@@ -59,3 +58,25 @@ Below figure showing some result on our captured images by `upsample + conv` Cyc
 | 房間窗外 | ![](assets/input/0001.png) | ![](assets/fake_B/0001.png) | ![](assets/fake_A/0001.png) |
 | 沖繩水族館 | ![](assets/input/0002.png) | ![](assets/fake_B/0002.png) | ![](assets/fake_A/0002.png) |
 | 金瓜石 | ![](assets/input/0003.png) | ![](assets/fake_B/0003.png) | ![](assets/fake_A/0003.png) |
+
+## Comparison with LAB color transfer [[ref]](https://github.com/jrosebr1/color_transfer)
+
+This is a simple method that shifting the target image LAB according to given image where only mean/std are considered in both side. In our implementation, we randomly sample a source image in the training set to tune given target image color. Below show the results compare with CycleGan:
+
+| Input (winter) | `upsample + conv` CycleGan | LAB Color Transfer |
+| :---: | :------: | :---------------: |
+| ![](assets/yomesite/B/input/0178.png) | ![](assets/yomesite/B/upconv/0178.png) | ![](assets/super_fast/0178.png) |
+| ![](assets/yomesite/B/input/0195.png) | ![](assets/yomesite/B/upconv/0195.png) | ![](assets/super_fast/0195.png) |
+| ![](assets/yomesite/B/input/0232.png) | ![](assets/yomesite/B/upconv/0232.png) | ![](assets/super_fast/0232.png) |
+| ![](assets/yomesite/B/input/0250.png) | ![](assets/yomesite/B/upconv/0250.png) | ![](assets/super_fast/0250.png) |
+| ![](assets/yomesite/B/input/0308.png) | ![](assets/yomesite/B/upconv/0308.png) | ![](assets/super_fast/0308.png) |
+
+| Input (summer) | `upsample + conv` CycleGan | LAB Color Transfer |
+| :---: | :------: | :---------------: |
+| ![](assets/yomesite/A/input/0019.png) | ![](assets/yomesite/A/upconv/0019.png) | ![](assets/super_fast/0019.png) |
+| ![](assets/yomesite/A/input/0033.png) | ![](assets/yomesite/A/upconv/0033.png) | ![](assets/super_fast/0033.png) |
+| ![](assets/yomesite/A/input/0043.png) | ![](assets/yomesite/A/upconv/0043.png) | ![](assets/super_fast/0043.png) |
+| ![](assets/yomesite/A/input/0117.png) | ![](assets/yomesite/A/upconv/0117.png) | ![](assets/super_fast/0117.png) |
+| ![](assets/yomesite/A/input/0044.png) | ![](assets/yomesite/A/upconv/0044.png) | ![](assets/super_fast/0044.png) |
+
+The color transfer method perfome well in some of the cases because giving more blue or green could have the people winter/summer feeling. However, if the soure image is not selected carefully, the transfered image will look strange (like the first row in summer2winter table above). Besides, one of the drawback of such color changing method is that it never make new thing. It can't never changing a hourse to zebra. On the other hand, the generative model, here the CycleGan, can make some snow or grass.
