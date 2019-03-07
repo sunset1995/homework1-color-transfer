@@ -1,77 +1,61 @@
 # Homework 1 (Color-Transfer and Texture-Transfer)
 
-A clean and readable Pytorch implementation of CycleGAN (https://arxiv.org/abs/1703.10593)
-## Assign
-
-1.  20% (Training cycleGAN)
-2.  10% (Inference cycleGAN in personal image)
-3.  20% (Compare with other method)
-4.  30% (Assistant) 
-5.  20% (Mutual evaluation)
-
-reference:
-[Super fast color transfer between images](https://github.com/jrosebr1/color_transfer)
-
-## Getting Started
-Please first install [Anaconda](https://anaconda.org) and create an Anaconda environment using the environment.yml file.
-
-```
-conda env create -f environment.yml
-```
-
-After you create the environment, activate it.
-```
-source activate hw1
-```
-
-Our current implementation only supports GPU so you need a GPU and need to have CUDA installed on your machine.
-
-## Training
-### 1. Download dataset
-
-```
-mkdir datasets
-bash ./download_dataset.sh <dataset_name>
-```
-Valid <dataset_name> are: apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, cezanne2photo, ukiyoe2photo, vangogh2photo, maps, cityscapes, facades, iphone2dslr_flower, ae_photos
-
-Alternatively you can build your own dataset by setting up the following directory structure:
-
-    .
-    ├── datasets                   
-    |   ├── <dataset_name>         # i.e. apple2orange
-    |   |   ├── trainA             # Contains domain A images (i.e. apple)
-    |   |   ├── trainB             # Contains domain B images (i.e. orange) 
-    |   |   ├── testA              # Testing
-    |   |   └── testB              # Testing
-    
-### 2. Train
-```
-python train.py --dataroot datasets/<dataset_name>/ --cuda
-```
-This command will start a training session using the images under the *dataroot/train* directory with the hyperparameters that showed best results according to CycleGAN authors. 
-
-Both generators and discriminators weights will be saved ```./output/<dataset_name>/``` the output directory.
-
-If you don't own a GPU remove the --cuda option, although I advise you to get one!
+We organize this report as follow:
+1. Training CycleGan
+    - describe some modification we made (`deconv` vs. `upsample + conv`)
+    - shoing the training loss plot
+2. Inferencing
+    - visualize/analysis the difference before/after the modification
+    - Visualization with different input resolution
+    - Show some result on personal images
+3. Other method [TODO]
 
 
-
-## Testing
-The pre-trained file is on [Google drive](https://drive.google.com/open?id=17FREtttCyFpvjRJxd4v3VVlVAu__Y5do). Download the file and save it on  ```./output/<dataset_name>/netG_A2B.pth``` and ```./output/<dataset_name>/netG_B2A.pth```. 
- 
-```
-python test.py --dataroot datasets/<dataset_name>/ --cuda
-```
-This command will take the images under the ```dataroot/testA/``` and ```dataroot/testB/``` directory, run them through the generators and save the output under the ```./output/<dataset_name>/``` directories. 
-
-Examples of the generated outputs (default params) apple2orange, summer2winter_yosemite, horse2zebra dataset:
-
-![Alt text](./output/imgs/0167.png)
-![Alt text](./output/imgs/0035.png)
-![Alt text](./output/imgs/0111.png)
+## 1. Training CycleGan
+We train CycleGan on `summer2winter_yosemite` dataset. The training detailed and modification we made are summarized as follow:
+- We use batch size 8 and input resolution `128x128` to fit our time space constraint.
+- All the other hyperparamters are same as original placeholder.
+- We tried original `Deconv` and `Upsample + Conv`. Detailed discussion and comparison later.
+- We use tensorboardX to monitor the training (see below figures)
+    - | Discriminator A | Discriminator B | Generator |
+      | :--: | :--: | :--: |
+      | ![](assets/DA_loss.png) | ![](assets/DB_loss.png) | ![](assets/G_loss.png) |
 
 
+## 2. Inferencing
+One of the visual defect of original cycle gan is chekerboard artifacts [[ref]](https://distill.pub/2016/deconv-checkerboard/). The reference propose to use `upsample` followed by a `conv` to alleviate the artifact. We tried both `deconv` and `upsample + conv` and showing some of the result as follow:
 
-## Acknowledgments
-Code is modified by [PyTorch-CycleGAN](https://github.com/aitorzip/PyTorch-CycleGAN). All credit goes to the authors of [CycleGAN](https://arxiv.org/abs/1703.10593), Zhu, Jun-Yan and Park, Taesung and Isola, Phillip and Efros, Alexei A.
+| Input (winter) | `deconv` CycleGan | `upsample + conv` CycleGan |
+| :---: | :------: | :---------------: |
+| ![](assets/yomesite/B/input/0178.png) | ![](assets/yomesite/B/deconv/0178.png) | ![](assets/yomesite/B/upconv/0178.png) |
+| ![](assets/yomesite/B/input/0195.png) | ![](assets/yomesite/B/deconv/0195.png) | ![](assets/yomesite/B/upconv/0195.png) |
+| ![](assets/yomesite/B/input/0232.png) | ![](assets/yomesite/B/deconv/0232.png) | ![](assets/yomesite/B/upconv/0232.png) |
+| ![](assets/yomesite/B/input/0250.png) | ![](assets/yomesite/B/deconv/0250.png) | ![](assets/yomesite/B/upconv/0250.png) |
+| ![](assets/yomesite/B/input/0308.png) | ![](assets/yomesite/B/deconv/0308.png) | ![](assets/yomesite/B/upconv/0308.png) |
+
+| Input (summer) | `deconv` CycleGan | `upsample + conv` CycleGan |
+| :---: | :------: | :---------------: |
+| ![](assets/yomesite/A/input/0019.png) | ![](assets/yomesite/A/deconv/0019.png) | ![](assets/yomesite/A/upconv/0019.png) |
+| ![](assets/yomesite/A/input/0033.png) | ![](assets/yomesite/A/deconv/0033.png) | ![](assets/yomesite/A/upconv/0033.png) |
+| ![](assets/yomesite/A/input/0043.png) | ![](assets/yomesite/A/deconv/0043.png) | ![](assets/yomesite/A/upconv/0043.png) |
+| ![](assets/yomesite/A/input/0117.png) | ![](assets/yomesite/A/deconv/0117.png) | ![](assets/yomesite/A/upconv/0117.png) |
+| ![](assets/yomesite/A/input/0044.png) | ![](assets/yomesite/A/deconv/0044.png) | ![](assets/yomesite/A/upconv/0044.png) |
+
+From above figures, we observe the `deconv` indeed results more checkerboard artifact than `upsample + conv` does. To further prove the idea, we performe a frequency domain analysis by inspecting the spectrum of 2d discrete fourier transform. We take the mean of all spectrum from normal images, images generated from `deconv` CycleGan and `upsample + conv` CycleGan respectively. Below figures show the mean spectrum of each:
+
+| Normal images | `deconv` CycleGan | `upsample + conv` CycleGan |
+| :-----------: | :---------------: | :------------------------: |
+| ![](assets/normal_spec.png) | ![](assets/deconv_spec.png) | ![](assets/upconv_spec.png) |
+
+The mean spectrum of normal images is smooth with one spotlight in the middle as expected. The spectrum of `deconv` have a grid arange spotlights in high frequency area which could cause by the so called checkerboard artifacts. Though there is less checkerboard in `upsample + conv`, the spectrum of it have valley in high frequency.
+
+In sum, although the two trained CycleGans are able to transform the style, the artifact are easy to observe if we look detailly.
+
+
+Below figure showing some result on our captured images by `upsample + conv` CycleGan.
+
+| Scene | Input | to winter | to summer |
+| :---: | :---: | :-------: | :-------: |
+| 房間窗外 | ![](assets/input/0001.png) | ![](assets/fake_B/0001.png) | ![](assets/fake_A/0001.png) |
+| 沖繩水族館 | ![](assets/input/0002.png) | ![](assets/fake_B/0002.png) | ![](assets/fake_A/0002.png) |
+| 金瓜石 | ![](assets/input/0003.png) | ![](assets/fake_B/0003.png) | ![](assets/fake_A/0003.png) |
